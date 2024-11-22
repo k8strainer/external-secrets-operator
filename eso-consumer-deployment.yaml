@@ -1,0 +1,45 @@
+# Deployment Definition to Consume the Secret Created by External Secrets Operator
+---
+# Deployment Definition to Consume the Secret Created by External Secrets Operator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secret-consumer-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secret-consumer
+  template:
+    metadata:
+      labels:
+        app: secret-consumer
+    spec:
+      containers:
+        - name: secret-consumer
+          image: registry.access.redhat.com/ubi9/ubi:latest
+          command: ["/bin/sh", "-c", "while true; do echo The secret is: $(cat /etc/secrets/password_file); sleep 5; done"]
+          volumeMounts:
+            - name: secret-volume
+              mountPath: /etc/secrets
+              readOnly: true
+          env:
+            - name: PASSWORD_FILE
+              value: "/etc/secrets/password_file"
+        - name: secret-watcher
+          # Funktion: Dieser Container verwendet inotifywait, um Änderungen an dem eingebundenen Secret (/etc/secrets/password_file) zu überwachen.
+          # Dieses Kommando sorgt dafür, dass Änderungen an der Datei erkannt werden und ein Signal an den Hauptprozess (PID 1) 
+          # des Pods gesendet wird, um die Datei OHNE Container- oder Pod- Restart neu zu lesen.
+          image: registry.access.redhat.com/ubi9/ubi:latest
+          command: ["/bin/sh", "-c", "while true; do inotifywait -e modify /etc/secrets/password_file && kill -HUP 1; done"]
+          volumeMounts:
+            - name: secret-volume
+              mountPath: /etc/secrets
+              readOnly: true
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: secret-created-from-eso-secret
+      restartPolicy: Always
+
