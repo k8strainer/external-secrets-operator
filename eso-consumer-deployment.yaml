@@ -19,7 +19,20 @@ spec:
       containers:
         - name: secret-consumer
           image: registry.access.redhat.com/ubi9/ubi:latest
-          command: ["/bin/sh", "-c", "while true; do echo The secret is: $(cat /etc/secrets/password_file); sleep 5; done"]
+          #command: ["/bin/sh", "-c", "while true; do echo The secret is: $(cat /etc/secrets/password_file); sleep 5; done"]
+          command: [
+            "/bin/sh",
+            "-c",
+            "start_time=$(date +%s); \
+             while true; do \
+               current_time=$(date +%s); \
+               elapsed_time=$((current_time - start_time)); \
+               minutes=$((elapsed_time / 60)); \
+               seconds=$((elapsed_time % 60)); \
+               echo Time elapsed: ${minutes}m ${seconds}s - The secret is: $(cat /etc/secrets/password_file); \
+               sleep 10; \
+             done"
+          ]
           volumeMounts:
             - name: secret-volume
               mountPath: /etc/secrets
